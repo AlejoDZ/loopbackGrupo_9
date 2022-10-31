@@ -17,11 +17,14 @@ import {
   del,
   requestBody,
   response,
+  HttpErrors,
 } from '@loopback/rest';
-import {Persona} from '../models';
+import {Credenciales, Persona} from '../models';
 import {PersonaRepository} from '../repositories';
 import {AutentificacionService} from '../services';
+import { llaves } from '../config/Llaves';
 const fetch = require('node-fetch');
+
 
 export class PersonaController {
   constructor(
@@ -30,6 +33,36 @@ export class PersonaController {
     @service(AutentificacionService)
     public servicioAutentificacion: AutentificacionService
   ) {}
+
+  //metodo para identifiac una persoan
+  @post('/identificarPersona',{
+    responses:{
+      '200':{
+        descripcion: 'identificacion de usuario'
+      }
+    }
+  })
+
+  async identificarPersona(
+
+    @requestBody() credenciales: Credenciales
+  ){
+    let p = await this.servicioAutentificacion.IdentificarPersona(credenciales.usuario, credenciales.clave)
+    if(p){
+      let token = this.servicioAutentificacion.GeneradorTokenJWT(p)
+
+      return{
+        datos:{
+          nombre: p.nombre,
+          correo: p.correo,
+          id: p.id
+        },
+        tk: token
+      }
+    }else{
+      throw new HttpErrors[401]('datos no validos')
+    }
+  }
 
   @post('/personas')
   @response(200, {
@@ -61,7 +94,7 @@ export class PersonaController {
     let contenido = `Hola ${persona.nombre}, su nombre de usuario es: ${persona.correo} y su contraseña es: ${clave}`;
 
     //consumir servicio de la app en python
-    fetch(`http://127.0.0.1:5000/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
+    fetch(`${llaves.urlNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`)
       .then((data: any) => {
         console.log(data);
       })
